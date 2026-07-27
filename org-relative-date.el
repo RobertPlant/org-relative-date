@@ -3,6 +3,7 @@
 ;; Copyright (C) 2026 Rob Plant
 
 ;; Author: Rob Plant <rob@robertplant.io>
+;; Assisted-by: Claude:claude-opus-4-8
 ;; Maintainer: Rob Plant <rob@robertplant.io>
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1"))
