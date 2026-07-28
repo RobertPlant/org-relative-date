@@ -68,7 +68,7 @@ refreshes the counts at 00:01 so an open buffer never shows yesterday's numbers.
 |---|---|---|
 | `org-relative-date-include-inactive` | `t` | Also annotate inactive `[…]` timestamps (`CLOSED:`, logbook lines), not just active `<…>` ones. Set to `nil` for a quieter, appointment-only view. |
 | `org-relative-date-formatter` | `org-relative-date-default-formatter` | Function mapping a day delta (integer; negative = past, `0` = today) to the label string. Override to change wording, e.g. `"in 3 days"` instead of `"3d away"`. |
-| `org-relative-date-face` | inherits `font-lock-comment-face`, italic | Face applied to the overlay text. |
+| `org-relative-date-face` | italic, light grey on dark backgrounds / dark grey on light ones | Face applied to the overlay text. Brighter than a plain comment so labels scan easily; falls back to `font-lock-comment-face` on terminals that report neither background. |
 
 Example — custom wording and active-only:
 

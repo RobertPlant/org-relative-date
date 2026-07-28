@@ -6,7 +6,7 @@
 ;; Assisted-by: Claude:claude-opus-4-8
 ;; Maintainer: Rob Plant <rob@robertplant.io>
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "27.1") (org "9.1"))
 ;; Keywords: calendar, org, convenience
 ;; URL: https://github.com/RobertPlant/org-relative-date
 
@@ -52,10 +52,19 @@
   :group 'org
   :prefix "org-relative-date-")
 
+(defun org-relative-date--set-option (symbol value)
+  "Set SYMBOL to VALUE, then repaint so open buffers reflect the change.
+Paired with `custom-initialize-default' on each option, so this runs only
+on a real user change and never during load, when nothing is painted yet."
+  (set-default symbol value)
+  (org-relative-date--refresh-all))
+
 (defcustom org-relative-date-include-inactive t
   "When non-nil, annotate inactive [timestamps] as well as active <ones>.
 Inactive timestamps include CLOSED: markers and logbook entries."
   :type 'boolean
+  :initialize #'custom-initialize-default
+  :set #'org-relative-date--set-option
   :group 'org-relative-date)
 
 (defcustom org-relative-date-formatter #'org-relative-date-default-formatter
@@ -64,6 +73,8 @@ Positive means in the future, negative means in the past, 0 is today.
 The returned string is shown verbatim after the timestamp, so include
 any desired leading space."
   :type 'function
+  :initialize #'custom-initialize-default
+  :set #'org-relative-date--set-option
   :group 'org-relative-date)
 
 (defface org-relative-date-face
@@ -108,7 +119,11 @@ timezone drift."
   "`jit-lock' worker: (re)annotate every timestamp between BEG and END."
   (save-excursion
     (goto-char beg)
-    (org-relative-date--clear (line-beginning-position) end)
+    ;; Pad both ends: `overlays-in' omits empty overlays sitting exactly at
+    ;; END (unless END is `point-max'), so an unpadded clear would leave one
+    ;; behind and this pass would add a second, duplicating the label.
+    (org-relative-date--clear (line-beginning-position)
+                              (min (point-max) (1+ end)))
     (let ((re (org-relative-date--regexp)))
       (while (re-search-forward re end t)
         (let ((o (make-overlay (match-end 0) (match-end 0)))
@@ -117,6 +132,20 @@ timezone drift."
           (overlay-put o 'after-string
                        (propertize (funcall org-relative-date-formatter days)
                                    'face 'org-relative-date-face)))))))
+
+(defun org-relative-date--active-anywhere-p ()
+  "Return non-nil if any live buffer still has the mode enabled."
+  (catch 'found
+    (dolist (buf (buffer-list))
+      (when (buffer-local-value 'org-relative-date-mode buf)
+        (throw 'found t)))))
+
+(defun org-relative-date--stop-timer-maybe ()
+  "Cancel the shared daily timer once no buffer needs it."
+  (when (and org-relative-date--timer
+             (not (org-relative-date--active-anywhere-p)))
+    (cancel-timer org-relative-date--timer)
+    (setq org-relative-date--timer nil)))
 
 (defun org-relative-date--refresh-all ()
   "Re-run overlays in every buffer where the mode is active.
@@ -137,7 +166,12 @@ Called by the daily timer so open buffers do not show yesterday's counts."
           (setq org-relative-date--timer
                 (run-at-time "00:01" 86400 #'org-relative-date--refresh-all))))
     (jit-lock-unregister #'org-relative-date--apply)
-    (org-relative-date--clear (point-min) (point-max))))
+    ;; Widen first: overlays outside a narrowing (e.g. `org-narrow-to-subtree')
+    ;; would otherwise survive with nothing left to clean them up.
+    (save-restriction
+      (widen)
+      (org-relative-date--clear (point-min) (point-max)))
+    (org-relative-date--stop-timer-maybe)))
 
 (defun org-relative-date--turn-on ()
   "Enable `org-relative-date-mode' in Org buffers only.
