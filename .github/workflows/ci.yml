@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 27.1 is the floor declared in Package-Requires; snapshot is advisory.
+        emacs_version: ['27.1', '28.2', '29.4', '30.1']
+        experimental: [false]
+        include:
+          - emacs_version: snapshot
+            experimental: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs_version }}
+
+      - name: Show versions
+        run: |
+          emacs --version
+          emacs -Q --batch --eval '(princ (format "org %s\n" (org-release)))'
+
+      - name: Byte-compile (warnings are errors)
+        run: make compile
+
+      - name: Checkdoc
+        run: make checkdoc
+
+      - name: ERT
+        run: make test
+
+  package-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: '30.1'
+
+      - name: Run package-lint
+        run: |
+          emacs -Q --batch \
+            --eval "(progn
+                      (require 'package)
+                      (setq package-user-dir (expand-file-name \".pkg\" default-directory))
+                      (add-to-list 'package-archives
+                                   '(\"melpa\" . \"https://melpa.org/packages/\") t)
+                      (package-initialize)
+                      (package-refresh-contents)
+                      (package-install 'package-lint)
+                      (require 'package-lint))" \
+            -f package-lint-batch-and-exit org-relative-date.el

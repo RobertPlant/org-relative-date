@@ -1,5 +1,7 @@
 # org-relative-date
 
+[![CI](https://github.com/RobertPlant/org-relative-date/actions/workflows/ci.yml/badge.svg)](https://github.com/RobertPlant/org-relative-date/actions/workflows/ci.yml)
+
 Live **"(N days away)" / "(N days ago)"** annotations after every Org timestamp,
 without ever touching the file.
 
@@ -80,6 +82,21 @@ Example — custom wording and active-only:
               ((>  days 0) (format " (in %d days)" days))
               (t           (format " (%d days ago)" (- days))))))
 ```
+
+## Development
+
+```bash
+make            # byte-compile (warnings fatal), checkdoc, then run the tests
+make compile
+make checkdoc
+make test
+make clean
+```
+
+Set `EMACS` to test against another build, e.g. `make test EMACS=emacs-27.1`.
+
+CI runs the same three targets on Emacs 27.1, 28.2, 29.4 and 30.1 (plus
+snapshot, advisory only), and separately runs `package-lint`.
 
 ## License
 
