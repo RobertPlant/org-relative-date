@@ -51,6 +51,13 @@ Meanwhile, straight from GitHub (Doom Emacs example):
 Enable `org-relative-date-mode` in any Org buffer (the hook above does this
 automatically). Toggle it off to remove every overlay.
 
+To turn it on for every Org buffer at once without a hook, enable the
+globalized mode instead:
+
+```elisp
+(global-org-relative-date-mode 1)
+```
+
 Overlays are painted lazily through `jit-lock`, so only the visible portion of a
 buffer is scanned — large journals and agenda files stay responsive. A daily timer
 refreshes the counts at 00:01 so an open buffer never shows yesterday's numbers.

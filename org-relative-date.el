@@ -88,10 +88,11 @@ any desired leading space."
 
 (defun org-relative-date--days (inside)
   "Return whole-day delta from today for INSIDE, the text between brackets.
-INSIDE looks like \"2027-01-09 Sat .+6m\"; only the date head is used."
-  (let ((target (org-time-string-to-time (car (split-string inside))))
-        (today  (org-time-string-to-time (format-time-string "%Y-%m-%d"))))
-    (round (/ (float-time (time-subtract target today)) 86400))))
+INSIDE looks like \"2027-01-09 Sat .+6m\"; only the date head is used.
+Uses absolute Gregorian day numbers so the count is immune to DST and
+timezone drift."
+  (- (org-time-string-to-absolute (car (split-string inside)))
+     (org-today)))
 
 (defun org-relative-date--clear (beg end)
   "Delete this mode's overlays between BEG and END."
@@ -133,8 +134,22 @@ Called by the daily timer so open buffers do not show yesterday's counts."
     (jit-lock-unregister #'org-relative-date--apply)
     (org-relative-date--clear (point-min) (point-max))))
 
+(defun org-relative-date--turn-on ()
+  "Enable `org-relative-date-mode' in Org buffers only.
+Buffer-predicate for `global-org-relative-date-mode', which would
+otherwise try to switch the mode on in every buffer."
+  (when (derived-mode-p 'org-mode)
+    (org-relative-date-mode 1)))
+
+;;;###autoload
+(define-globalized-minor-mode global-org-relative-date-mode
+  org-relative-date-mode org-relative-date--turn-on
+  :group 'org-relative-date)
+
 ;; To enable everywhere, add to your init:
 ;;   (add-hook 'org-mode-hook #'org-relative-date-mode)
+;; or:
+;;   (global-org-relative-date-mode 1)
 
 (provide 'org-relative-date)
 ;;; org-relative-date.el ends here
