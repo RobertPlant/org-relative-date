@@ -95,8 +95,13 @@ make clean
 
 Set `EMACS` to test against another build, e.g. `make test EMACS=emacs-27.1`.
 
-CI runs the same three targets on Emacs 27.1, 28.2, 29.4 and 30.1 (plus
-snapshot, advisory only), and separately runs `package-lint`.
+CI runs the same three targets on Emacs 27.1, 28.2, 29.4 and 30.1, and
+separately runs `package-lint`. There is also a `snapshot` job, which is
+advisory: keep it out of the branch's required status checks, but do look at
+it, since it reports failure honestly rather than being masked.
+
+`make test` fails if fewer than `run-tests-minimum` tests actually run, so a
+suite that quietly stops being discovered cannot report a green build.
 
 ## License
 
