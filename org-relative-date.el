@@ -67,8 +67,13 @@ any desired leading space."
   :group 'org-relative-date)
 
 (defface org-relative-date-face
-  '((t :inherit font-lock-comment-face :slant italic))
-  "Face for the relative-date overlay text."
+  '((((background dark))  :foreground "#c5cdd9" :slant italic)
+    (((background light)) :foreground "#4c4c4c" :slant italic)
+    (t                    :inherit font-lock-comment-face :slant italic))
+  "Face for the relative-date overlay text.
+Brighter than a plain comment so the annotation is easy to scan, while
+staying italic to mark it as non-buffer text.  The foreground adapts to
+light and dark backgrounds; override this face to taste."
   :group 'org-relative-date)
 
 (defvar org-relative-date--timer nil
