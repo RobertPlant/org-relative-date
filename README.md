@@ -30,19 +30,18 @@ text visible and editable.
 
 ## Install
 
-Once on [MELPA](https://melpa.org):
+Available on [MELPA](https://melpa.org/#/org-relative-date):
 
 ```elisp
 (use-package org-relative-date
   :hook (org-mode . org-relative-date-mode))
 ```
 
-Meanwhile, straight from GitHub (Doom Emacs example):
+Doom Emacs:
 
 ```elisp
 ;; packages.el
-(package! org-relative-date
-  :recipe (:host github :repo "RobertPlant/org-relative-date"))
+(package! org-relative-date)
 
 ;; config.el
 (add-hook 'org-mode-hook #'org-relative-date-mode)

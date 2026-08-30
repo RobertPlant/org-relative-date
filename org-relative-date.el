@@ -5,7 +5,7 @@
 ;; Author: Rob Plant <rob@robertplant.io>
 ;; Assisted-by: Claude:claude-opus-4-8
 ;; Maintainer: Rob Plant <rob@robertplant.io>
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "27.1") (org "9.1"))
 ;; Keywords: calendar, org, convenience
 ;; URL: https://github.com/RobertPlant/org-relative-date
