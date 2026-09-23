@@ -121,6 +121,46 @@ still come out as a whole number of days."
       (should (equal (buffer-string) text))
       (should-not (buffer-modified-p)))))
 
+(ert-deftest org-relative-date-test-extra-format-nil-by-default ()
+  "`org-relative-date-extra-format' is off unless the user sets it."
+  (should-not (default-value 'org-relative-date-extra-format))
+  (org-relative-date-test--with-org (org-relative-date-test--stamp 3)
+    (org-relative-date--apply (point-min) (point-max))
+    (should (equal (org-relative-date-test--labels) '(" 3d away")))))
+
+(ert-deftest org-relative-date-test-extra-format-week-number ()
+  "A `format-time-string' spec is appended, read off the timestamp's own date.
+Not off today's date: the stamp here is three days out, so a
+week-number that came from `current-time' would be wrong whenever
+those three days cross a Monday."
+  (let ((stamp (org-relative-date-test--stamp 3)))
+    (org-relative-date-test--with-org stamp
+      (let ((org-relative-date-extra-format " W%V"))
+        (org-relative-date--apply (point-min) (point-max))
+        (should (equal (org-relative-date-test--labels)
+                       (list (format " 3d away W%s"
+                                     (format-time-string
+                                      "%V" (time-add nil (days-to-time 3)))))))))))
+
+(ert-deftest org-relative-date-test-extra-format-iso-week-boundary ()
+  "The week number is ISO-8601, so 2027-01-01 is week 53 of 2026, not week 1."
+  (org-relative-date-test--with-org "<2027-01-01 Fri>"
+    (let ((org-relative-date-extra-format " W%V")
+          (org-relative-date-formatter (lambda (_days) "")))
+      (org-relative-date--apply (point-min) (point-max))
+      (should (equal (org-relative-date-test--labels) '(" W53"))))))
+
+(ert-deftest org-relative-date-test-extra-format-survives-custom-formatter ()
+  "The extra format is independent of the formatter, which may clobber match data.
+A formatter doing its own `string-match' must not cost the extra
+format the timestamp it is supposed to read."
+  (org-relative-date-test--with-org "<2027-01-01 Fri>"
+    (let ((org-relative-date-extra-format " W%V")
+          (org-relative-date-formatter
+           (lambda (_days) (string-match "x" "x") " soon")))
+      (org-relative-date--apply (point-min) (point-max))
+      (should (equal (org-relative-date-test--labels) '(" soon W53"))))))
+
 ;;;; Idempotence at region boundaries
 
 (ert-deftest org-relative-date-test-reapply-does-not-duplicate ()
@@ -235,9 +275,10 @@ clear would strand every overlay outside the visible region."
         (org-relative-date-mode -1)))))
 
 (ert-deftest org-relative-date-test-options-use-our-setter ()
-  "Both options route user changes through `org-relative-date--set-option'."
+  "Every option routes user changes through `org-relative-date--set-option'."
   (dolist (sym '(org-relative-date-include-inactive
-                 org-relative-date-formatter))
+                 org-relative-date-formatter
+                 org-relative-date-extra-format))
     (should (eq (get sym 'custom-set) #'org-relative-date--set-option))))
 
 (ert-deftest org-relative-date-test-loads-cleanly-in-fresh-emacs ()
