@@ -77,6 +77,20 @@ any desired leading space."
   :set #'org-relative-date--set-option
   :group 'org-relative-date)
 
+(defcustom org-relative-date-extra-format nil
+  "When non-nil, a `format-time-string' spec appended after the label.
+Applied to the timestamp's own date, so it reads fields *of that
+timestamp* rather than of today: \" W%V\" appends the ISO week number,
+\" (day %j)\" the day of the year.  Include any leading space.
+
+Nil, the default, appends nothing.  This is independent of
+`org-relative-date-formatter', so a custom formatter keeps it."
+  :type '(choice (const :tag "Nothing" nil)
+                 (string :tag "format-time-string spec"))
+  :initialize #'custom-initialize-default
+  :set #'org-relative-date--set-option
+  :group 'org-relative-date)
+
 (defface org-relative-date-face
   '((((background dark))  :foreground "#c5cdd9" :slant italic)
     (((background light)) :foreground "#4c4c4c" :slant italic)
@@ -126,12 +140,22 @@ timezone drift."
                               (min (point-max) (1+ end)))
     (let ((re (org-relative-date--regexp)))
       (while (re-search-forward re end t)
-        (let ((o (make-overlay (match-end 0) (match-end 0)))
-              (days (org-relative-date--days (match-string 1))))
+        ;; Grab the match text up front: a user `org-relative-date-formatter'
+        ;; is free to run its own searches, which would clobber the match data
+        ;; before the extra format got to read it.
+        (let* ((inside (match-string 1))
+               (o (make-overlay (match-end 0) (match-end 0)))
+               (days (org-relative-date--days inside)))
           (overlay-put o 'org-relative-date t)
           (overlay-put o 'after-string
-                       (propertize (funcall org-relative-date-formatter days)
-                                   'face 'org-relative-date-face)))))))
+                       (propertize
+                        ;; `concat' drops the nil when no extra format is set.
+                        (concat (funcall org-relative-date-formatter days)
+                                (and org-relative-date-extra-format
+                                     (format-time-string
+                                      org-relative-date-extra-format
+                                      (org-time-string-to-time inside))))
+                        'face 'org-relative-date-face)))))))
 
 (defun org-relative-date--active-anywhere-p ()
   "Return non-nil if any live buffer still has the mode enabled."

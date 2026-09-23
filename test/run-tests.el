@@ -16,6 +16,12 @@
 ;;; Code:
 
 (require 'ert)
+
+;; `load' prefers org-relative-date.elc over a newer .el, so a bare `make test'
+;; after an edit silently exercises the last compile - another green run that
+;; verified nothing, which is the whole point of this file.
+(setq load-prefer-newer t)
+
 (require 'org-relative-date-test)
 
 (defconst run-tests-minimum 15
