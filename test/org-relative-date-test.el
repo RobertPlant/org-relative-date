@@ -53,9 +53,26 @@ state into one another."
        (setq org-relative-date--timer nil))))
 
 (defun org-relative-date-test--stamp (days)
-  "Return an active Org timestamp DAYS from today."
+  "Return an active Org timestamp DAYS from today.
+Counted in whole days rather than adding 86400s, which lands on the
+wrong date within an hour of midnight on a DST weekend."
   (format-time-string "<%Y-%m-%d %a>"
-                      (time-add nil (days-to-time days))))
+                      (org-time-from-absolute (+ (org-today) days))))
+
+(defmacro org-relative-date-test--on (date text &rest body)
+  "Run BODY in an Org buffer containing TEXT, with today pinned to DATE.
+DATE is a \"YYYY-MM-DD\" string.  Pinning makes the edge cases run on
+every CI run, not only on the day the calendar happens to reach them."
+  (declare (indent 2) (debug (form form body)))
+  `(cl-letf (((symbol-function 'org-today)
+              (let ((day (org-time-string-to-absolute ,date)))
+                (lambda () day))))
+     (org-relative-date-test--with-org ,text ,@body)))
+
+(defun org-relative-date-test--paint ()
+  "Paint the whole buffer and return its labels."
+  (org-relative-date--apply (point-min) (point-max))
+  (org-relative-date-test--labels))
 
 ;;;; Day arithmetic and formatting
 
@@ -75,13 +92,59 @@ state into one another."
     (should (= 0 (org-relative-date--days (concat today " Mon 23:59"))))
     (should (= 0 (org-relative-date--days (concat today " Mon .+6m"))))))
 
-(ert-deftest org-relative-date-test-days-is-dst-proof ()
-  "Day deltas use absolute day numbers, so DST boundaries do not shift them.
-Europe/London springs forward on 2027-03-28; a delta spanning it must
-still come out as a whole number of days."
-  (let ((process-environment (cons "TZ=Europe/London" process-environment)))
-    (should (= 1 (- (org-time-string-to-absolute "2027-03-29")
-                    (org-time-string-to-absolute "2027-03-28"))))))
+(ert-deftest org-relative-date-test-year-boundary ()
+  "Counts run straight across New Year in both directions."
+  (org-relative-date-test--on "2026-12-31"
+      "<2027-01-01 Fri> [2026-01-01 Thu] <2027-12-31 Fri>"
+    (should (equal (org-relative-date-test--paint)
+                   '(" tomorrow" " 364d ago" " 365d away")))))
+
+(ert-deftest org-relative-date-test-leap-day ()
+  "28 Feb to 1 Mar is two days in a leap year and one otherwise."
+  (org-relative-date-test--on "2028-02-28" "<2028-03-01 Wed>"
+    (should (equal (org-relative-date-test--paint) '(" 2d away"))))
+  (org-relative-date-test--on "2027-02-28" "<2027-03-01 Mon>"
+    (should (equal (org-relative-date-test--paint) '(" tomorrow")))))
+
+(ert-deftest org-relative-date-test-dst-changeovers ()
+  "Both Europe/London changeovers give whole days, label and extra format.
+The extra format converts the stamp to a time, which is where a DST
+hour could push it onto the neighbouring date."
+  (let ((tz (getenv "TZ")))
+    (unwind-protect
+        (progn
+          (set-time-zone-rule "Europe/London")
+          (let ((org-relative-date-extra-format " %F"))
+            (org-relative-date-test--on "2027-03-27" "<2027-03-29 Mon>"
+              (should (equal (org-relative-date-test--paint)
+                             '(" 2d away 2027-03-29"))))
+            (org-relative-date-test--on "2027-11-01" "[2027-10-30 Sat]"
+              (should (equal (org-relative-date-test--paint)
+                             '(" 2d ago 2027-10-30"))))))
+      (set-time-zone-rule tz))))
+
+;;;; Timestamp variants
+
+(ert-deftest org-relative-date-test-date-range ()
+  "Each end of a <a>--<b> range gets its own label."
+  (org-relative-date-test--on "2027-01-10" "<2027-01-09 Sat>--<2027-01-12 Tue>"
+    (should (equal (org-relative-date-test--paint) '(" yesterday" " 2d away")))))
+
+(ert-deftest org-relative-date-test-time-range ()
+  "A time range inside one stamp is a single date."
+  (org-relative-date-test--on "2027-01-10" "<2027-01-10 Sun 10:00-12:00>"
+    (should (equal (org-relative-date-test--paint) '(" today")))))
+
+(ert-deftest org-relative-date-test-repeater-and-warning ()
+  "Repeaters and warning delays are ignored; only the date counts."
+  (org-relative-date-test--on "2027-01-10"
+      "<2027-01-09 Sat .+6m> <2027-01-12 Tue +1w -2d>"
+    (should (equal (org-relative-date-test--paint) '(" yesterday" " 2d away")))))
+
+(ert-deftest org-relative-date-test-diary-sexp-ignored ()
+  "Diary sexp stamps have no single date, so they get no label."
+  (org-relative-date-test--on "2027-01-10" "<%%(diary-float t 4 2)>"
+    (should-not (org-relative-date-test--paint))))
 
 ;;;; Painting
 
@@ -140,7 +203,8 @@ those three days cross a Monday."
         (should (equal (org-relative-date-test--labels)
                        (list (format " 3d away W%s"
                                      (format-time-string
-                                      "%V" (time-add nil (days-to-time 3)))))))))))
+                                      "%V" (org-time-from-absolute
+                                            (+ (org-today) 3)))))))))))
 
 (ert-deftest org-relative-date-test-extra-format-iso-week-boundary ()
   "The week number is ISO-8601, so 2027-01-01 is week 53 of 2026, not week 1."
@@ -228,14 +292,31 @@ clear would strand every overlay outside the visible region."
           (should-not org-relative-date--timer)
           (should-not (cl-find-if
                        (lambda (T)
-                         (eq (timer--function T)
-                             #'org-relative-date--refresh-all))
+                         (eq (timer--function T) #'org-relative-date--tick))
                        timer-list)))
       (when org-relative-date--timer
         (cancel-timer org-relative-date--timer)
         (setq org-relative-date--timer nil))
       (kill-buffer b1)
       (kill-buffer b2))))
+
+;;;; Date-change timer
+
+(ert-deftest org-relative-date-test-tick-repaints-only-on-new-day ()
+  "The timer repaints once when the date changes and not on other ticks."
+  (let ((org-relative-date--painted-day nil)
+        (today (org-time-string-to-absolute "2027-10-31"))
+        (repaints 0))
+    (cl-letf (((symbol-function 'org-today) (lambda () today))
+              ((symbol-function 'org-relative-date--refresh-all)
+               (lambda () (cl-incf repaints))))
+      (org-relative-date--tick)
+      (org-relative-date--tick)
+      (should (= repaints 1))
+      (cl-incf today)
+      (org-relative-date--tick)
+      (org-relative-date--tick)
+      (should (= repaints 2)))))
 
 ;;;; Globalized mode
 

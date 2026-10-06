@@ -34,8 +34,8 @@
 ;; so the raw `<2027-01-09 Sat .+6m>' stays visible and editable.
 ;;
 ;; Overlays are painted lazily through `jit-lock' (only the visible region is
-;; scanned, so large agenda/journal files stay responsive), and a daily timer
-;; re-runs them so the counts do not go stale at midnight.
+;; scanned, so large agenda/journal files stay responsive), and a timer
+;; repaints them when the date changes so the counts do not go stale.
 ;;
 ;; Usage:
 ;;
@@ -102,7 +102,10 @@ light and dark backgrounds; override this face to taste."
   :group 'org-relative-date)
 
 (defvar org-relative-date--timer nil
-  "Shared daily timer that refreshes overlays so counts stay current.")
+  "Shared timer that repaints overlays when the date changes.")
+
+(defvar org-relative-date--painted-day nil
+  "The `org-today' the timer last saw, so it repaints only on a change.")
 
 (defun org-relative-date-default-formatter (days)
   "Default DAYS -> label mapping (e.g. -1 -> \" yesterday\")."
@@ -111,10 +114,6 @@ light and dark backgrounds; override this face to taste."
         ((= days -1) " yesterday")
         ((>  days  0) (format " %dd away" days))
         (t            (format " %dd ago" (- days)))))
-
-(defun org-relative-date--regexp ()
-  "Return the timestamp regexp to scan for, honouring user options."
-  (if org-relative-date-include-inactive org-ts-regexp-both org-ts-regexp))
 
 (defun org-relative-date--days (inside)
   "Return whole-day delta from today for INSIDE, the text between brackets.
@@ -138,7 +137,9 @@ timezone drift."
     ;; behind and this pass would add a second, duplicating the label.
     (org-relative-date--clear (line-beginning-position)
                               (min (point-max) (1+ end)))
-    (let ((re (org-relative-date--regexp)))
+    (let ((re (if org-relative-date-include-inactive
+                  org-ts-regexp-both
+                org-ts-regexp)))
       (while (re-search-forward re end t)
         ;; Grab the match text up front: a user `org-relative-date-formatter'
         ;; is free to run its own searches, which would clobber the match data
@@ -157,6 +158,16 @@ timezone drift."
                                       (org-time-string-to-time inside))))
                         'face 'org-relative-date-face)))))))
 
+(defun org-relative-date--tick ()
+  "Repaint every buffer if the date has changed since the last tick.
+Polled rather than scheduled for midnight: a repeating timer counts
+seconds, so one set for 00:01 drifts an hour at every DST change.
+Polling also follows `org-extend-today-until' and waking from suspend."
+  (let ((today (org-today)))
+    (unless (eql today org-relative-date--painted-day)
+      (setq org-relative-date--painted-day today)
+      (org-relative-date--refresh-all))))
+
 (defun org-relative-date--active-anywhere-p ()
   "Return non-nil if any live buffer still has the mode enabled."
   (catch 'found
@@ -172,8 +183,7 @@ timezone drift."
     (setq org-relative-date--timer nil)))
 
 (defun org-relative-date--refresh-all ()
-  "Re-run overlays in every buffer where the mode is active.
-Called by the daily timer so open buffers do not show yesterday's counts."
+  "Re-run overlays in every buffer where the mode is active."
   (dolist (buf (buffer-list))
     (with-current-buffer buf
       (when (bound-and-true-p org-relative-date-mode)
@@ -187,8 +197,9 @@ Called by the daily timer so open buffers do not show yesterday's counts."
       (progn
         (jit-lock-register #'org-relative-date--apply)
         (unless org-relative-date--timer
-          (setq org-relative-date--timer
-                (run-at-time "00:01" 86400 #'org-relative-date--refresh-all))))
+          (setq org-relative-date--painted-day (org-today)
+                org-relative-date--timer
+                (run-at-time 60 60 #'org-relative-date--tick))))
     (jit-lock-unregister #'org-relative-date--apply)
     ;; Widen first: overlays outside a narrowing (e.g. `org-narrow-to-subtree')
     ;; would otherwise survive with nothing left to clean them up.
@@ -208,11 +219,6 @@ otherwise try to switch the mode on in every buffer."
 (define-globalized-minor-mode global-org-relative-date-mode
   org-relative-date-mode org-relative-date--turn-on
   :group 'org-relative-date)
-
-;; To enable everywhere, add to your init:
-;;   (add-hook 'org-mode-hook #'org-relative-date-mode)
-;; or:
-;;   (global-org-relative-date-mode 1)
 
 (provide 'org-relative-date)
 ;;; org-relative-date.el ends here
