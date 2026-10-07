@@ -60,8 +60,9 @@ globalized mode instead:
 ```
 
 Overlays are painted lazily through `jit-lock`, so only the visible portion of a
-buffer is scanned — large journals and agenda files stay responsive. A daily timer
-refreshes the counts at 00:01 so an open buffer never shows yesterday's numbers.
+buffer is scanned — large journals and agenda files stay responsive. A timer checks
+the date every minute and repaints when it changes, so an open buffer never shows
+yesterday's numbers.
 
 ## Customization
 
@@ -101,7 +102,7 @@ make clean
 
 Set `EMACS` to test against another build, e.g. `make test EMACS=emacs-27.1`.
 
-CI runs the same three targets on Emacs 27.1, 28.2, 29.4 and 30.1, and
+CI runs the same three targets on Emacs 27.1, 28.2, 29.4, 30.2 and 31.1, and
 separately runs `package-lint`. There is also a `snapshot` job, which is
 advisory: keep it out of the branch's required status checks, but do look at
 it, since it reports failure honestly rather than being masked.

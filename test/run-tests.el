@@ -24,7 +24,7 @@
 
 (require 'org-relative-date-test)
 
-(defconst run-tests-minimum 15
+(defconst run-tests-minimum 25
   "Fail the run if fewer than this many tests execute.")
 
 (let* ((stats (ert-run-tests-batch t))
