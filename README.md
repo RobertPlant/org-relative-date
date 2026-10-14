@@ -14,7 +14,7 @@ without ever touching the file.
   <2026-07-28 Tue 10:00>               tomorrow
 ```
 
-The greyed-out labels above are overlays — the buffer text is still just the raw
+The greyed-out labels above are overlays. The buffer text is still just the raw
 `<2027-01-09 Sat>`, so nothing is written to disk, timestamps stay editable, and
 point/column math is unaffected.
 
@@ -60,7 +60,7 @@ globalized mode instead:
 ```
 
 Overlays are painted lazily through `jit-lock`, so only the visible portion of a
-buffer is scanned — large journals and agenda files stay responsive. A timer checks
+buffer is scanned, so large journals and agenda files stay responsive. A timer checks
 the date every minute and repaints when it changes, so an open buffer never shows
 yesterday's numbers.
 
@@ -73,7 +73,7 @@ yesterday's numbers.
 | `org-relative-date-extra-format` | `nil` | When non-nil, a `format-time-string` spec appended after the label, applied to *the timestamp's own date*. `" W%V"` gives the ISO week number, `" (day %j)"` the day of the year. Independent of the formatter, so a custom one keeps it. |
 | `org-relative-date-face` | italic, light grey on dark backgrounds / dark grey on light ones | Face applied to the overlay text. Brighter than a plain comment so labels scan easily; falls back to `font-lock-comment-face` on terminals that report neither background. |
 
-Example — custom wording and active-only:
+Example: custom wording and active-only.
 
 ```elisp
 (setq org-relative-date-include-inactive nil)
@@ -84,7 +84,7 @@ Example — custom wording and active-only:
               (t           (format " (%d days ago)" (- days))))))
 ```
 
-Example — append the ISO week number, as `<2026-09-23 Wed> 3d away W39`:
+Example: append the ISO week number, as `<2026-09-23 Wed> 3d away W39`:
 
 ```elisp
 (setq org-relative-date-extra-format " W%V")
