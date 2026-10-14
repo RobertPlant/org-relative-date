@@ -366,8 +366,8 @@ clear would strand every overlay outside the visible region."
   "The file must load without error in a virgin Emacs.
 The options' `:set' function calls `org-relative-date--refresh-all',
 which is defined further down the file, so the default
-`custom-initialize-reset' — which invokes `:set' to seed the initial
-value — would raise void-function during `defcustom'.  Only a fresh
+`custom-initialize-reset', which invokes `:set' to seed the initial
+value, would raise void-function during `defcustom'.  Only a fresh
 process catches this; by the time this suite runs, everything is
 already defined."
   (let ((dir (file-name-directory (locate-library "org-relative-date")))
