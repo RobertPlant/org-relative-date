@@ -106,7 +106,7 @@ every CI run, not only on the day the calendar happens to reach them."
   "Both Europe/London changeovers give whole days, label and extra format.
 The extra format converts the stamp to a time, which is where a DST
 hour could push it onto the neighbouring date."
-  (let ((tz (getenv "TZ")))
+  (let ((time-zone (getenv "TZ")))
     (unwind-protect
         (progn
           (set-time-zone-rule "Europe/London")
@@ -117,7 +117,7 @@ hour could push it onto the neighbouring date."
             (org-relative-date-test--with-today "2027-11-01" "[2027-10-30 Sat]"
               (should (equal (org-relative-date-test--paint-buffer)
                              '(" 2d ago 2027-10-30"))))))
-      (set-time-zone-rule tz))))
+      (set-time-zone-rule time-zone))))
 
 (ert-deftest org-relative-date-test-date-range ()
   "Each end of a <a>--<b> range gets its own label."
@@ -166,7 +166,8 @@ hour could push it onto the neighbouring date."
 (ert-deftest org-relative-date-test-custom-formatter ()
   "`org-relative-date-formatter' controls the label text."
   (org-relative-date-test--with-org (org-relative-date-test--build-stamp 3)
-    (let ((org-relative-date-formatter (lambda (d) (format " (in %d days)" d))))
+    (let ((org-relative-date-formatter
+           (lambda (days) (format " (in %d days)" days))))
       (org-relative-date--annotate-region (point-min) (point-max))
       (should (equal (org-relative-date-test--list-labels)
                      '(" (in 3 days)"))))))
@@ -268,31 +269,33 @@ clear would strand every overlay outside the visible region."
 
 (ert-deftest org-relative-date-test-timer-lifecycle ()
   "The shared timer starts on first enable and stops after the last disable."
-  (let ((b1 (generate-new-buffer " *ord-test-1*"))
-        (b2 (generate-new-buffer " *ord-test-2*")))
+  (let ((first-buffer (generate-new-buffer " *ord-test-1*"))
+        (second-buffer (generate-new-buffer " *ord-test-2*")))
     (unwind-protect
         (progn
-          (with-current-buffer b1 (delay-mode-hooks (org-mode))
-                               (org-relative-date-mode 1))
+          (with-current-buffer first-buffer
+            (delay-mode-hooks (org-mode))
+            (org-relative-date-mode 1))
           (should org-relative-date--timer)
-          (with-current-buffer b2 (delay-mode-hooks (org-mode))
-                               (org-relative-date-mode 1))
-          (with-current-buffer b1 (org-relative-date-mode -1))
+          (with-current-buffer second-buffer
+            (delay-mode-hooks (org-mode))
+            (org-relative-date-mode 1))
+          (with-current-buffer first-buffer (org-relative-date-mode -1))
           (should org-relative-date--timer)
-          (with-current-buffer b2 (org-relative-date-mode -1))
+          (with-current-buffer second-buffer (org-relative-date-mode -1))
           ;; Both the handle and the actual scheduled timer must be gone;
           ;; nilling the variable alone would orphan a running timer.
           (should-not org-relative-date--timer)
           (should-not (cl-find-if
-                       (lambda (T)
-                         (eq (timer--function T)
+                       (lambda (timer)
+                         (eq (timer--function timer)
                              #'org-relative-date--refresh-on-new-day))
                        timer-list)))
       (when org-relative-date--timer
         (cancel-timer org-relative-date--timer)
         (setq org-relative-date--timer nil))
-      (kill-buffer b1)
-      (kill-buffer b2))))
+      (kill-buffer first-buffer)
+      (kill-buffer second-buffer))))
 
 (ert-deftest org-relative-date-test-tick-repaints-only-on-new-day ()
   "The timer repaints once when the date changes and not on other ticks."
@@ -346,10 +349,10 @@ clear would strand every overlay outside the visible region."
 
 (ert-deftest org-relative-date-test-options-use-our-setter ()
   "Every option routes user changes through `org-relative-date--set-option'."
-  (dolist (sym '(org-relative-date-include-inactive
-                 org-relative-date-formatter
-                 org-relative-date-extra-format))
-    (should (eq (get sym 'custom-set) #'org-relative-date--set-option))))
+  (dolist (option '(org-relative-date-include-inactive
+                    org-relative-date-formatter
+                    org-relative-date-extra-format))
+    (should (eq (get option 'custom-set) #'org-relative-date--set-option))))
 
 (ert-deftest org-relative-date-test-loads-cleanly-in-fresh-emacs ()
   "The file must load without error in a virgin Emacs.
@@ -359,10 +362,10 @@ which is defined further down the file, so the default
 value, would raise void-function during `defcustom'.  Only a fresh
 process catches this; by the time this suite runs, everything is
 already defined."
-  (let ((dir (file-name-directory (locate-library "org-relative-date")))
+  (let ((directory (file-name-directory (locate-library "org-relative-date")))
         (emacs (expand-file-name invocation-name invocation-directory)))
     (should (eq 0 (call-process emacs nil nil nil
-                                "-Q" "--batch" "-L" dir
+                                "-Q" "--batch" "-L" directory
                                 "-l" "org-relative-date")))))
 
 (ert-deftest org-relative-date-test-old-formatter-name-still-works ()

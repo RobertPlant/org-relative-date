@@ -128,8 +128,8 @@ timezone drift."
 
 (defun org-relative-date--remove-overlays (beg end)
   "Delete this mode's overlays between BEG and END."
-  (dolist (o (overlays-in beg end))
-    (when (overlay-get o 'org-relative-date) (delete-overlay o))))
+  (dolist (overlay (overlays-in beg end))
+    (when (overlay-get overlay 'org-relative-date) (delete-overlay overlay))))
 
 (defun org-relative-date--format-label (inside)
   "Return the overlay text for the timestamp whose bracketed text is INSIDE."
@@ -144,9 +144,9 @@ timezone drift."
 
 (defun org-relative-date--annotate-region (beg end)
   "`jit-lock' worker: (re)annotate every timestamp between BEG and END."
-  (let ((re (if org-relative-date-include-inactive
-                org-ts-regexp-both
-              org-ts-regexp)))
+  (let ((regexp (if org-relative-date-include-inactive
+                    org-ts-regexp-both
+                  org-ts-regexp)))
     (save-excursion
       (goto-char beg)
       ;; Pad both ends: `overlays-in' omits empty overlays sitting exactly at
@@ -154,15 +154,15 @@ timezone drift."
       ;; behind and this pass would add a second, duplicating the label.
       (org-relative-date--remove-overlays (line-beginning-position)
                                           (min (point-max) (1+ end)))
-      (while (re-search-forward re end t)
+      (while (re-search-forward regexp end t)
         ;; read the match before the label: a user formatter is free to run
         ;; its own searches and clobber the match data
         (let* ((inside (match-string 1))
                (stamp-end (match-end 0))
                (label (org-relative-date--format-label inside))
-               (o (make-overlay stamp-end stamp-end)))
-          (overlay-put o 'org-relative-date t)
-          (overlay-put o 'after-string label))))))
+               (overlay (make-overlay stamp-end stamp-end)))
+          (overlay-put overlay 'org-relative-date t)
+          (overlay-put overlay 'after-string label))))))
 
 (defun org-relative-date--refresh-on-new-day ()
   "Repaint every buffer if the date has changed since the last tick.
@@ -177,8 +177,8 @@ Polling also follows `org-extend-today-until' and waking from suspend."
 (defun org-relative-date--active-anywhere-p ()
   "Return non-nil if any live buffer still has the mode enabled."
   (catch 'found
-    (dolist (buf (buffer-list))
-      (when (buffer-local-value 'org-relative-date-mode buf)
+    (dolist (buffer (buffer-list))
+      (when (buffer-local-value 'org-relative-date-mode buffer)
         (throw 'found t)))))
 
 (defun org-relative-date--stop-timer-maybe ()
@@ -190,8 +190,8 @@ Polling also follows `org-extend-today-until' and waking from suspend."
 
 (defun org-relative-date--refresh-all ()
   "Re-run overlays in every buffer where the mode is active."
-  (dolist (buf (buffer-list))
-    (with-current-buffer buf
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
       (when (bound-and-true-p org-relative-date-mode)
         (jit-lock-refontify)))))
 
