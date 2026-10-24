@@ -67,7 +67,7 @@ Inactive timestamps include CLOSED: markers and logbook entries."
   :set #'org-relative-date--set-option
   :group 'org-relative-date)
 
-(defcustom org-relative-date-formatter #'org-relative-date-default-formatter
+(defcustom org-relative-date-formatter #'org-relative-date-format-days
   "Function mapping a day delta (integer) to the overlay string.
 Positive means in the future, negative means in the past, 0 is today.
 The returned string is shown verbatim after the timestamp, so include
@@ -107,15 +107,18 @@ light and dark backgrounds; override this face to taste."
 (defvar org-relative-date--painted-day nil
   "The `org-today' the timer last saw, so it repaints only on a change.")
 
-(defun org-relative-date-default-formatter (days)
-  "Default DAYS -> label mapping (e.g. -1 -> \" yesterday\")."
+(defun org-relative-date-format-days (days)
+  "Return the default label for DAYS from today (e.g. -1 -> \" yesterday\")."
   (cond ((=  days  0) " today")
         ((=  days  1) " tomorrow")
         ((= days -1) " yesterday")
         ((>  days  0) (format " %dd away" days))
         (t            (format " %dd ago" (- days)))))
 
-(defun org-relative-date--days (inside)
+(define-obsolete-function-alias 'org-relative-date-default-formatter
+  #'org-relative-date-format-days "0.3.2")
+
+(defun org-relative-date--count-days (inside)
   "Return whole-day delta from today for INSIDE, the text between brackets.
 INSIDE looks like \"2027-01-09 Sat .+6m\"; only the date head is used.
 Uses absolute Gregorian day numbers so the count is immune to DST and
@@ -123,7 +126,7 @@ timezone drift."
   (- (org-time-string-to-absolute (car (split-string inside)))
      (org-today)))
 
-(defun org-relative-date--clear (beg end)
+(defun org-relative-date--remove-overlays (beg end)
   "Delete this mode's overlays between BEG and END."
   (dolist (o (overlays-in beg end))
     (when (overlay-get o 'org-relative-date) (delete-overlay o))))
@@ -133,13 +136,13 @@ timezone drift."
   (propertize
    ;; `concat' drops the nil when no extra format is set.
    (concat (funcall org-relative-date-formatter
-                    (org-relative-date--days inside))
+                    (org-relative-date--count-days inside))
            (and org-relative-date-extra-format
                 (format-time-string org-relative-date-extra-format
                                     (org-time-string-to-time inside))))
    'face 'org-relative-date-face))
 
-(defun org-relative-date--apply (beg end)
+(defun org-relative-date--annotate-region (beg end)
   "`jit-lock' worker: (re)annotate every timestamp between BEG and END."
   (let ((re (if org-relative-date-include-inactive
                 org-ts-regexp-both
@@ -149,8 +152,8 @@ timezone drift."
       ;; Pad both ends: `overlays-in' omits empty overlays sitting exactly at
       ;; END (unless END is `point-max'), so an unpadded clear would leave one
       ;; behind and this pass would add a second, duplicating the label.
-      (org-relative-date--clear (line-beginning-position)
-                                (min (point-max) (1+ end)))
+      (org-relative-date--remove-overlays (line-beginning-position)
+                                          (min (point-max) (1+ end)))
       (while (re-search-forward re end t)
         ;; read the match before the label: a user formatter is free to run
         ;; its own searches and clobber the match data
@@ -161,7 +164,7 @@ timezone drift."
           (overlay-put o 'org-relative-date t)
           (overlay-put o 'after-string label))))))
 
-(defun org-relative-date--tick ()
+(defun org-relative-date--refresh-on-new-day ()
   "Repaint every buffer if the date has changed since the last tick.
 Polled rather than scheduled for midnight: a repeating timer counts
 seconds, so one set for 00:01 drifts an hour at every DST change.
@@ -198,17 +201,17 @@ Polling also follows `org-extend-today-until' and waking from suspend."
   :lighter " RelDate"
   (if org-relative-date-mode
       (progn
-        (jit-lock-register #'org-relative-date--apply)
+        (jit-lock-register #'org-relative-date--annotate-region)
         (unless org-relative-date--timer
           (setq org-relative-date--painted-day (org-today)
                 org-relative-date--timer
-                (run-at-time 60 60 #'org-relative-date--tick))))
-    (jit-lock-unregister #'org-relative-date--apply)
+                (run-at-time 60 60 #'org-relative-date--refresh-on-new-day))))
+    (jit-lock-unregister #'org-relative-date--annotate-region)
     ;; Widen first: overlays outside a narrowing (e.g. `org-narrow-to-subtree')
     ;; would otherwise survive with nothing left to clean them up.
     (save-restriction
       (widen)
-      (org-relative-date--clear (point-min) (point-max)))
+      (org-relative-date--remove-overlays (point-min) (point-max)))
     (org-relative-date--stop-timer-maybe)))
 
 (defun org-relative-date--turn-on ()

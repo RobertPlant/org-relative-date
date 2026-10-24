@@ -69,7 +69,7 @@ yesterday's numbers.
 | Option | Default | Meaning |
 |---|---|---|
 | `org-relative-date-include-inactive` | `t` | Also annotate inactive `[…]` timestamps (`CLOSED:`, logbook lines), not just active `<…>` ones. Set to `nil` for a quieter, appointment-only view. |
-| `org-relative-date-formatter` | `org-relative-date-default-formatter` | Function mapping a day delta (integer; negative = past, `0` = today) to the label string. Override to change wording, e.g. `"in 3 days"` instead of `"3d away"`. |
+| `org-relative-date-formatter` | `org-relative-date-format-days` | Function mapping a day delta (integer; negative = past, `0` = today) to the label string. Override to change wording, e.g. `"in 3 days"` instead of `"3d away"`. |
 | `org-relative-date-extra-format` | `nil` | When non-nil, a `format-time-string` spec appended after the label, applied to *the timestamp's own date*. `" W%V"` gives the ISO week number, `" (day %j)"` the day of the year. Independent of the formatter, so a custom one keeps it. |
 | `org-relative-date-face` | italic, light grey on dark backgrounds / dark grey on light ones | Face applied to the overlay text. Brighter than a plain comment so labels scan easily; falls back to `font-lock-comment-face` on terminals that report neither background. |
 
