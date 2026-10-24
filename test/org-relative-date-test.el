@@ -24,18 +24,22 @@
 
 (require 'ert)
 (require 'cl-lib)
+(require 'seq)
 (require 'org-relative-date)
 
 ;;;; Helpers
 
 (defun org-relative-date-test--labels ()
   "Return the overlay labels currently painted in the buffer, in order."
-  (let (labels)
-    (dolist (o (sort (overlays-in (point-min) (point-max))
-                     (lambda (a b) (< (overlay-start a) (overlay-start b)))))
-      (when (overlay-get o 'org-relative-date)
-        (push (substring-no-properties (overlay-get o 'after-string)) labels)))
-    (nreverse labels)))
+  (let* ((overlays (seq-sort (lambda (a b)
+                               (< (overlay-start a) (overlay-start b)))
+                             (overlays-in (point-min) (point-max))))
+         (annotations (seq-filter (lambda (overlay)
+                                    (overlay-get overlay 'org-relative-date))
+                                  overlays)))
+    (mapcar (lambda (annotation)
+              (substring-no-properties (overlay-get annotation 'after-string)))
+            annotations)))
 
 (defmacro org-relative-date-test--with-org (text &rest body)
   "Run BODY in a temporary Org buffer containing TEXT, point at `point-min'.
