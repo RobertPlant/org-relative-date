@@ -27,8 +27,6 @@
 (require 'seq)
 (require 'org-relative-date)
 
-;;;; Helpers
-
 (defun org-relative-date-test--list-labels ()
   "Return the overlay labels currently painted in the buffer, in order."
   (let* ((overlays (seq-sort (lambda (a b)
@@ -78,8 +76,6 @@ every CI run, not only on the day the calendar happens to reach them."
   (org-relative-date--annotate-region (point-min) (point-max))
   (org-relative-date-test--list-labels))
 
-;;;; Day arithmetic and formatting
-
 (ert-deftest org-relative-date-test-default-formatter ()
   "The default formatter special-cases the three nearby days."
   (should (equal (org-relative-date-format-days 0) " today"))
@@ -127,8 +123,6 @@ hour could push it onto the neighbouring date."
                              '(" 2d ago 2027-10-30"))))))
       (set-time-zone-rule tz))))
 
-;;;; Timestamp variants
-
 (ert-deftest org-relative-date-test-date-range ()
   "Each end of a <a>--<b> range gets its own label."
   (org-relative-date-test--with-today "2027-01-10"
@@ -153,8 +147,6 @@ hour could push it onto the neighbouring date."
   "Diary sexp stamps have no single date, so they get no label."
   (org-relative-date-test--with-today "2027-01-10" "<%%(diary-float t 4 2)>"
     (should-not (org-relative-date-test--paint-buffer))))
-
-;;;; Painting
 
 (ert-deftest org-relative-date-test-annotates-active-and-inactive ()
   "Both <active> and [inactive] timestamps get a label by default."
@@ -234,8 +226,6 @@ format the timestamp it is supposed to read."
       (org-relative-date--annotate-region (point-min) (point-max))
       (should (equal (org-relative-date-test--list-labels) '(" soon W53"))))))
 
-;;;; Idempotence at region boundaries
-
 (ert-deftest org-relative-date-test-reapply-does-not-duplicate ()
   "Re-running over the same region replaces labels rather than stacking them."
   (org-relative-date-test--with-org
@@ -254,8 +244,6 @@ the clear range has to be padded; this is the regression guard for that."
       (org-relative-date--annotate-region (point-min) end)
       (org-relative-date--annotate-region (point-min) end)
       (should (equal (org-relative-date-test--list-labels) '(" tomorrow"))))))
-
-;;;; Mode lifecycle
 
 (ert-deftest org-relative-date-test-disable-clears-overlays ()
   "Turning the mode off removes every overlay it painted."
@@ -310,8 +298,6 @@ clear would strand every overlay outside the visible region."
       (kill-buffer b1)
       (kill-buffer b2))))
 
-;;;; Date-change timer
-
 (ert-deftest org-relative-date-test-tick-repaints-only-on-new-day ()
   "The timer repaints once when the date changes and not on other ticks."
   (let ((org-relative-date--painted-day nil)
@@ -328,8 +314,6 @@ clear would strand every overlay outside the visible region."
       (org-relative-date--refresh-on-new-day)
       (should (= repaints 2)))))
 
-;;;; Globalized mode
-
 (ert-deftest org-relative-date-test-turn-on-skips-non-org ()
   "The globalized mode's predicate leaves non-Org buffers alone."
   (with-temp-buffer
@@ -343,8 +327,6 @@ clear would strand every overlay outside the visible region."
     (org-relative-date--turn-on)
     (should (bound-and-true-p org-relative-date-mode))
     (org-relative-date-mode -1)))
-
-;;;; Options
 
 (ert-deftest org-relative-date-test-option-set-repaints ()
   "Changing an option through Custom repaints buffers that are already on."
