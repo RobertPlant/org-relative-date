@@ -46,6 +46,7 @@
 ;;; Code:
 
 (require 'org)
+(require 'seq)
 
 (defgroup org-relative-date nil
   "Live relative-date overlays on Org timestamps."
@@ -176,10 +177,8 @@ Polling also follows `org-extend-today-until' and waking from suspend."
 
 (defun org-relative-date--active-anywhere-p ()
   "Return non-nil if any live buffer still has the mode enabled."
-  (catch 'found
-    (dolist (buffer (buffer-list))
-      (when (buffer-local-value 'org-relative-date-mode buffer)
-        (throw 'found t)))))
+  (seq-some (lambda (buffer) (buffer-local-value 'org-relative-date-mode buffer))
+            (buffer-list)))
 
 (defun org-relative-date--stop-timer-maybe ()
   "Cancel the shared timer once no buffer needs it."
