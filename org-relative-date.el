@@ -27,7 +27,7 @@
 
 ;;; Commentary:
 
-;; `org-relative-date-mode' paints a live "(N days away)" / "(N days ago)"
+;; `org-relative-date-mode' paints a live "3d away" / "2d ago" / "today"
 ;; annotation *after* every Org timestamp in the buffer, without modifying the
 ;; file.  It is the spiritual successor to `time-uuid-mode': rather than
 ;; replacing text via a `display' property, it appends an `after-string' overlay,
@@ -46,6 +46,7 @@
 ;;; Code:
 
 (require 'org)
+(require 'seq)
 
 (defgroup org-relative-date nil
   "Live relative-date overlays on Org timestamps."
@@ -176,13 +177,11 @@ Polling also follows `org-extend-today-until' and waking from suspend."
 
 (defun org-relative-date--active-anywhere-p ()
   "Return non-nil if any live buffer still has the mode enabled."
-  (catch 'found
-    (dolist (buffer (buffer-list))
-      (when (buffer-local-value 'org-relative-date-mode buffer)
-        (throw 'found t)))))
+  (seq-some (lambda (buffer) (buffer-local-value 'org-relative-date-mode buffer))
+            (buffer-list)))
 
 (defun org-relative-date--stop-timer-maybe ()
-  "Cancel the shared daily timer once no buffer needs it."
+  "Cancel the shared timer once no buffer needs it."
   (when (and org-relative-date--timer
              (not (org-relative-date--active-anywhere-p)))
     (cancel-timer org-relative-date--timer)
@@ -197,7 +196,7 @@ Polling also follows `org-extend-today-until' and waking from suspend."
 
 ;;;###autoload
 (define-minor-mode org-relative-date-mode
-  "Show a live \"(N days away)\" overlay after every Org timestamp."
+  "Show a live \"3d away\" overlay after every Org timestamp."
   :lighter " RelDate"
   (if org-relative-date-mode
       (progn

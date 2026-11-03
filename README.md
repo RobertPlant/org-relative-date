@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/RobertPlant/org-relative-date/actions/workflows/ci.yml/badge.svg)](https://github.com/RobertPlant/org-relative-date/actions/workflows/ci.yml)
 
-Live **"(N days away)" / "(N days ago)"** annotations after every Org timestamp,
+Live **"3d away" / "2d ago"** annotations after every Org timestamp,
 without ever touching the file.
 
 ```org

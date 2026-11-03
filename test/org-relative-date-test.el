@@ -15,10 +15,9 @@
 ;;
 ;;   make test
 ;;
-;; or directly:
+;; or directly, through the runner so the test-count floor still applies:
 ;;
-;;   emacs -Q --batch -L . -L test \
-;;     -l test/org-relative-date-test.el -f ert-run-tests-batch-and-exit
+;;   emacs -Q --batch -L . -L test -l test/run-tests.el
 
 ;;; Code:
 
@@ -281,6 +280,8 @@ clear would strand every overlay outside the visible region."
             (delay-mode-hooks (org-mode))
             (org-relative-date-mode 1))
           (should org-relative-date--timer)
+          ;; A daily timer drifts an hour at each DST change, so it has to poll.
+          (should (<= (timer--repeat-delay org-relative-date--timer) 300))
           (with-current-buffer second-buffer
             (delay-mode-hooks (org-mode))
             (org-relative-date-mode 1))
